@@ -903,20 +903,21 @@ async function sendMessage() {
     let liveText = '';
     if (window.__voice) window.__voice.setState('thinking');  // ★ 一開始等待就顯示思考
     // ★ 切換發送掣→停止掣
-  dom.sendBtn.textContent = '停止';
-  dom.sendBtn.style.background = 'var(--danger)';
-  dom.sendBtn.onclick = () => {
-    if (activeStream) { activeStream.cancel(); activeStream = null; }
-    if (window.__voice) window.__voice.setState('idle');
-    dom.sendBtn.textContent = '发送';
-    dom.sendBtn.style.background = '';
-    dom.sendBtn.onclick = sendMessage;
-    dom.sendBtn.disabled = false;
-    isSending = false;
-    finalizeLiveBubble(liveText);
-    if (liveText) addChatMessage('ai', liveText);
-    thoughtLine('msg', '已停止生成');
-  };
+  const btn = document.getElementById('send-btn');
+  if (btn) {
+    btn.textContent = '停止';
+    btn.style.background = '#ff4444';
+    btn.style.color = '#fff';
+    btn.onclick = () => {
+      if (activeStream) { activeStream.cancel(); activeStream = null; }
+      if (window.__voice) window.__voice.setState('idle');
+      btn.textContent = t('send'); btn.style.background = ''; btn.style.color = '';
+      btn.onclick = sendMessage; btn.disabled = false; isSending = false;
+      finalizeLiveBubble(liveText);
+      if (liveText) addChatMessage('ai', liveText);
+      thoughtLine('msg', '已停止生成');
+    };
+  }
 
   activeStream = connectChatStream(streamId, {
       onToken(token, fullText) {
@@ -952,10 +953,8 @@ async function sendMessage() {
         thoughtLine('msg', `回复完成 · ${finalText.length} 字符 · ${toolCalls.length} 次工具调用`);
         activeStream = null;
         // ★ 恢復發送掣
-        dom.sendBtn.textContent = t('send');
-        dom.sendBtn.style.background = '';
-        dom.sendBtn.onclick = sendMessage;
-        dom.sendBtn.disabled = false;
+        const sb = document.getElementById('send-btn');
+        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
         isSending = false;
         setTimeout(loadSessions, 1000);
         setTimeout(loadTokenUsage, 1500);
@@ -964,14 +963,15 @@ async function sendMessage() {
         console.warn('[SSE]', err);
         if (activeStream) { finalizeLiveBubble(liveText); activeStream = null; }
         setAiActivity('idle', '空闲');
-        dom.sendBtn.textContent = t('send'); dom.sendBtn.style.background = '';
-        dom.sendBtn.onclick = sendMessage; dom.sendBtn.disabled = false; isSending = false;
+        const sb = document.getElementById('send-btn');
+        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
+        isSending = false;
       },
       onCancel() {
         activeStream = null;
-        dom.sendBtn.textContent = t('send'); dom.sendBtn.style.background = '';
-        dom.sendBtn.onclick = sendMessage; dom.sendBtn.disabled = false; isSending = false;
-        setAiActivity('idle', '空闲');
+        const sb = document.getElementById('send-btn');
+        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
+        isSending = false; setAiActivity('idle', '空闲');
       },
     });
   } catch (e) {
@@ -1406,6 +1406,12 @@ async function loadMemoryForGraph() {
 
     dom.statMemories.textContent = String(data.node_count || memories.length);
     const activeCount = memories.filter(m => m.is_active).length;
+    const inactiveCount = memories.filter(m => !m.is_active && m.type?.startsWith('focus')).length;
+    const factCount = memories.filter(m => m.type?.startsWith('mem_')).length;
+    // ★ 更新圖例數字
+    setText('legend-active-count', String(activeCount));
+    setText('legend-inactive-count', String(inactiveCount));
+    setText('legend-fact-count', String(factCount));
     thoughtLine('msg', `记忆图谱已加载: ${data.node_count || memories.length} 节点 · ${data.link_count || 0} 连线 · ${activeCount} 活跃焦点`);
   } catch (e) {
     console.warn('[memory]', e.message);
