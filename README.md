@@ -35,6 +35,28 @@ cd hermes-glass
 > 
 > 截圖可放 `docs/screenshots/` 目錄
 
+
+## Architecture
+
+```
+Browser (Hermes Glass UI)
+    |
+    +-- HTTP/SSE -> Hermes WebUI (:8788) -> Hermes Agent
+    +-- HTTP      -> Memory Bridge (:8791) -> SQLite (memory.db)
+    +-- WebSocket -> STT Server (:8792)    -> faster-whisper
+```
+
+## Tech Stack
+
+| Layer | Tech |
+|-------|------|
+| Framework | Native JS (ES Modules) · Zero dependencies |
+| Visualization | D3.js v7 — Force-directed memory graph |
+| Styling | CSS Variables · 7 themes · Glassmorphism panels |
+| Real-time | SSE + WebSocket |
+| Voice | faster-whisper (CTranslate2) |
+| Memory | SQLite + FTS5 |
+
 ## 功能
 
 | 功能 | 說明 |

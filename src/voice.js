@@ -138,15 +138,27 @@ export function initVoicePanel({canvasId,voiceBtnId,getMsgInput}={}){
   idle:      {a:0.18, s:0.2,  la:0.05, h:210, g:0.15},
   listening: {a:0.4,  s:0.6,  la:0.15, h:200, g:0.25},
   recording: {a:0.9,  s:3.5,  la:0.5,  h:0,   g:0.5},
-  thinking:  {a:0.7,  s:2.8,  la:0.4,  h:35,  g:0.45},  // 橙黃快轉
-  speaking:  {a:0.8,  s:1.2,  la:0.35, h:275, g:0.4},   // 紫脈衝
+  thinking:  {a:0.7,  s:2.8,  la:0.4,  h:35,  g:0.45},
+  speaking:  {a:0.8,  s:1.2,  la:0.35, h:275, g:0.4},
 };
+  // ★ 淺色主題 (Arctic/Sand) 用草綠色系 + 降低光暈
+  const LIGHT_CFG={
+  idle:      {a:0.15, s:0.2,  la:0.04, h:140, g:0.10},
+  listening: {a:0.35, s:0.5,  la:0.12, h:135, g:0.18},
+  recording: {a:0.85, s:3.0,  la:0.45, h:0,   g:0.45},
+  thinking:  {a:0.6,  s:2.5,  la:0.35, h:115, g:0.30},
+  speaking:  {a:0.7,  s:1.0,  la:0.28, h:145, g:0.28},
+};
+  function getCFG(){
+    const t=document.body?.dataset?.theme||'';
+    return (t==='arctic'||t==='sand')?LIGHT_CFG:CFG;
+  }
   // ★ 軌道符號（thinking 時圍住球轉）
   const orbitSymbols=['?','?','?','💡','🔍','⚙'];
 
   function draw(){
     tick+=0.016;trans=Math.min(1,trans+0.04);
-    const c=CFG[state]||CFG.idle,p=CFG[prev]||CFG.idle,lf=trans;
+    const cfg=getCFG(),c=cfg[state]||cfg.idle,p=cfg[prev]||cfg.idle,lf=trans;
     const speed=lerp(p.s,c.s,lf),alpha=lerp(p.a,c.a,lf);
     const linkAlpha=lerp(p.la,c.la,lf),hue=lerp(p.h,c.h,lf),glow=lerp(p.g,c.g,lf);
 
