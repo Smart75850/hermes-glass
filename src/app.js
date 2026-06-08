@@ -892,7 +892,17 @@ async function sendMessage() {
   setAiActivity('thinking', '思考中…');
 
   try {
-    // 1. 启动对话
+    // 1. 先取消之前嘅 active stream（如果有）
+    try {
+      const sessions = await HermesAPI.listSessions();
+      const active = sessions.find(s => s.session_id === activeSessionId);
+      if (active?.active_stream_id) {
+        await HermesAPI.chatCancel(active.active_stream_id);
+        console.log('[send] cancelled previous stream:', active.active_stream_id);
+      }
+    } catch (_) {}
+
+    // 2. 启动对话
     const startResult = await HermesAPI.chatStart(activeSessionId, text);
     const streamId = startResult.stream_id;
     if (!streamId) throw new Error('No stream_id returned');
