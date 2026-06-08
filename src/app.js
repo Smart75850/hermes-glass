@@ -902,7 +902,23 @@ async function sendMessage() {
     // 2. 连接 SSE 流
     let liveText = '';
     if (window.__voice) window.__voice.setState('thinking');  // ★ 一開始等待就顯示思考
-    activeStream = connectChatStream(streamId, {
+    // ★ 切換發送掣→停止掣
+  dom.sendBtn.textContent = '停止';
+  dom.sendBtn.style.background = 'var(--danger)';
+  dom.sendBtn.onclick = () => {
+    if (activeStream) { activeStream.cancel(); activeStream = null; }
+    if (window.__voice) window.__voice.setState('idle');
+    dom.sendBtn.textContent = '发送';
+    dom.sendBtn.style.background = '';
+    dom.sendBtn.onclick = sendMessage;
+    dom.sendBtn.disabled = false;
+    isSending = false;
+    finalizeLiveBubble(liveText);
+    if (liveText) addChatMessage('ai', liveText);
+    thoughtLine('msg', '已停止生成');
+  };
+
+  activeStream = connectChatStream(streamId, {
       onToken(token, fullText) {
         liveText = fullText;
         updateLiveBubble(liveText);
@@ -935,25 +951,26 @@ async function sendMessage() {
         window.__voice?.setState('idle');
         thoughtLine('msg', `回复完成 · ${finalText.length} 字符 · ${toolCalls.length} 次工具调用`);
         activeStream = null;
+        // ★ 恢復發送掣
+        dom.sendBtn.textContent = t('send');
+        dom.sendBtn.style.background = '';
+        dom.sendBtn.onclick = sendMessage;
         dom.sendBtn.disabled = false;
         isSending = false;
         setTimeout(loadSessions, 1000);
-        setTimeout(loadTokenUsage, 1500);  // ★ 每次對話後更新 token
+        setTimeout(loadTokenUsage, 1500);
       },
       onError(err) {
         console.warn('[SSE]', err);
-        if (activeStream) {
-          finalizeLiveBubble(liveText);
-          activeStream = null;
-        }
+        if (activeStream) { finalizeLiveBubble(liveText); activeStream = null; }
         setAiActivity('idle', '空闲');
-        dom.sendBtn.disabled = false;
-        isSending = false;
+        dom.sendBtn.textContent = t('send'); dom.sendBtn.style.background = '';
+        dom.sendBtn.onclick = sendMessage; dom.sendBtn.disabled = false; isSending = false;
       },
       onCancel() {
         activeStream = null;
-        dom.sendBtn.disabled = false;
-        isSending = false;
+        dom.sendBtn.textContent = t('send'); dom.sendBtn.style.background = '';
+        dom.sendBtn.onclick = sendMessage; dom.sendBtn.disabled = false; isSending = false;
         setAiActivity('idle', '空闲');
       },
     });
@@ -961,8 +978,8 @@ async function sendMessage() {
     console.error('[send]', e);
     thoughtLine('msg', `发送失败: ${e.message}`);
     setAiActivity('idle', '空闲');
-    dom.sendBtn.disabled = false;
-    isSending = false;
+    dom.sendBtn.textContent = t('send'); dom.sendBtn.style.background = '';
+    dom.sendBtn.onclick = sendMessage; dom.sendBtn.disabled = false; isSending = false;
   }
 }
 

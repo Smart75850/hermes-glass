@@ -106,33 +106,25 @@ export function initVoicePanel({canvasId,voiceBtnId,getMsgInput}={}){
 
   // ── Push-to-Talk ──
   let spaceDown=false;
-  const msgInput=getMsgInput?.();
 
-  // ★ 攔截 beforeinput：阻止空格打入輸入框（比 keydown 更可靠）
-  if(msgInput){
-    msgInput.addEventListener('beforeinput',(e)=>{
-      if(spaceDown&&e.data===' '){e.preventDefault()}
-    });
-  }
-
-  async function onKeyDown(e){
+  function onKeyDown(e){
     if(e.code!=='Space'||e.repeat) return;
-    const inp=getMsgInput?.();
-    if(document.activeElement!==inp) return;
+    if(document.activeElement!==msgInput) return;
     e.preventDefault();spaceDown=true;
-    // ★ 顯示錄音狀態，唔清除已有文字
-    if(inp){inp.placeholder='🎤 正在聆聽…'}
-    if(!mic){const ok=await micOn();if(!ok){spaceDown=false;return}}
-    if(!recording) start();
+    if(msgInput) msgInput.placeholder='🎤 正在聆聽…';
+    if(!mic){micOn().then(ok=>{if(!ok)spaceDown=false;else if(spaceDown&&!recording)start()})}
+    else if(!recording) start();
   }
   function onKeyUp(e){
     if(e.code!=='Space'||!spaceDown) return;
     e.preventDefault();spaceDown=false;stop();
-    const inp=getMsgInput?.();
-    if(inp) inp.placeholder='向 Hermes 發消息…';
+    if(msgInput) msgInput.placeholder='向 Hermes 發消息…';
   }
-  document.addEventListener('keydown',onKeyDown,{capture:true});
-  document.addEventListener('keyup',onKeyUp,{capture:true});
+  // ★ 只監聽輸入框，唔影響 paste/Ctrl+C 等全域快捷鍵
+  if(msgInput){
+    msgInput.addEventListener('keydown',onKeyDown);
+    msgInput.addEventListener('keyup',onKeyUp);
+  }
 
   // ── 點擊球 ──
   async function click(){if(!mic)await micOn();setState(mic?'listening':'idle')}
