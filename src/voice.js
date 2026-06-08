@@ -106,6 +106,7 @@ export function initVoicePanel({canvasId,voiceBtnId,getMsgInput}={}){
 
   // ── Push-to-Talk ──
   let spaceDown=false;
+  const msgInput = getMsgInput?.();
 
   function onKeyDown(e){
     if(e.code!=='Space'||e.repeat) return;
