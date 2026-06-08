@@ -906,17 +906,23 @@ async function sendMessage() {
   const btn = document.getElementById('send-btn');
   if (btn) {
     btn.textContent = '停止';
-    btn.style.background = '#ff4444';
-    btn.style.color = '#fff';
-    btn.onclick = () => {
+    btn.style.background = '#ff4444'; btn.style.color = '#fff';
+    btn.disabled = false;
+    // 先移除舊 listener，再加新嘅
+    const stopHandler = () => {
       if (activeStream) { activeStream.cancel(); activeStream = null; }
       if (window.__voice) window.__voice.setState('idle');
-      btn.textContent = t('send'); btn.style.background = ''; btn.style.color = '';
-      btn.onclick = sendMessage; btn.disabled = false; isSending = false;
       finalizeLiveBubble(liveText);
       if (liveText) addChatMessage('ai', liveText);
       thoughtLine('msg', '已停止生成');
+      // 恢復發送掣
+      btn.textContent = t('send'); btn.style.background = ''; btn.style.color = '';
+      btn.removeEventListener('click', stopHandler);
+      btn.addEventListener('click', sendMessage);
+      isSending = false;
     };
+    btn.removeEventListener('click', sendMessage);
+    btn.addEventListener('click', stopHandler);
   }
 
   activeStream = connectChatStream(streamId, {

@@ -41,9 +41,9 @@
 - [x] 金色騎士馬頭 logo
 
 ## 可選後續
-- [ ] Kanban 任務板前端 UI
-- [ ] Goals 目標追蹤面板
-- [ ] 手機端適配優化
-- [ ] Electron 桌面打包
+- [ ] Kanban 任務板 *(planned v0.2.0)*前端 UI
+- [ ] Goals 目標追蹤 *(planned v0.2.0)*面板
+- [ ] 手機端適配 *(planned v0.2.0)*優化
+- [ ] Electron 桌面 *(planned v0.2.0)*打包
 - [ ] 更多 ACUI 卡片類型
 - [ ] 語音識別雲端 API 支援（OpenAI Whisper API）

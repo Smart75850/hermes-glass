@@ -5,7 +5,7 @@
   "description": "A visually stunning native WebUI for Hermes Agent — dark tech aesthetics with glassmorphism panels and D3 memory graph.",
   "type": "module",
   "main": "electron/main.cjs",
-  "author": "Hermes UI Team",
+  "author": "Smart75850",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -43,7 +43,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -55,5 +57,25 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Hermes Native UI"
     }
+  },
+  "keywords": [
+    "hermes-agent",
+    "webui",
+    "ai-agent",
+    "dark-theme",
+    "d3js",
+    "memory-graph",
+    "glassmorphism",
+    "voice-input",
+    "chat-interface",
+    "open-source"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Smart75850/hermes-glass.git"
+  },
+  "homepage": "https://github.com/Smart75850/hermes-glass#readme",
+  "bugs": {
+    "url": "https://github.com/Smart75850/hermes-glass/issues"
   }
 }

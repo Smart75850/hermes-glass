@@ -2,7 +2,23 @@
 
 > AI 認知界面 — 為 Hermes Agent 打造的暗黑科技風 WebUI
 
-Hermes Glass 係一個持續運行嘅 AI Agent **認知界面**，靈感來自白龍馬 (Bailongma) 嘅視覺設計語言，但完全為 Hermes Agent 原生打造。
+Hermes Glass 係一個持續運行嘅 AI Agent **認知界面**，靈感來自白龍馬
+
+## 📸 Preview
+
+> Screenshots coming soon. Run locally to see the full interface.
+
+| Chat View | Memory Graph | Thought Stream |
+|-----------|-------------|----------------|
+| *coming soon* | *coming soon* | *coming soon* |
+
+### Quick Demo
+```bash
+git clone https://github.com/Smart75850/hermes-glass.git
+cd hermes-glass
+# Open index.html or deploy to Hermes WebUI static/native/
+```
+ (Bailongma) 嘅視覺設計語言，但完全為 Hermes Agent 原生打造。
 
 你可以透過佢同 Hermes Agent 對話、監控 AI 思考過程、探索記憶圖譜、搜尋歷史對話——全部都係即時嘅。
 
