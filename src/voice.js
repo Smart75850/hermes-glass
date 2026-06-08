@@ -150,8 +150,7 @@ export function initVoicePanel({canvasId,voiceBtnId,getMsgInput}={}){
   speaking:  {a:0.7,  s:1.0,  la:0.28, h:145, g:0.28},
 };
   function getCFG(){
-    const t=document.body?.dataset?.theme||'';
-    return (t==='arctic'||t==='sand')?LIGHT_CFG:CFG;
+    try{const t=document.body?.dataset?.theme||localStorage.getItem('hermes-ui-theme')||'';return(t==='arctic'||t==='sand')?LIGHT_CFG:CFG}catch(e){return CFG}
   }
   // ★ 軌道符號（thinking 時圍住球轉）
   const orbitSymbols=['?','?','?','💡','🔍','⚙'];
