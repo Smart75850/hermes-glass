@@ -163,6 +163,13 @@ function thoughtLine(type, msg, toolName = '', ok = true) {
 // ═══════════════════════════════════════════════════════════════
 // 聊天消息
 // ═══════════════════════════════════════════════════════════════
+// ── 滾動加載更多歷史 ──
+dom.chatMessages.addEventListener('scroll', () => {
+  if (dom.chatMessages.scrollTop < 60 && !isLoadingMore && !allMessagesLoaded) {
+    loadMoreMessages();
+  }
+});
+
 function addChatMessage(role, text, label = '') {
   const div = document.createElement('div');
   div.style.cssText = `
@@ -1065,34 +1072,85 @@ async function loadSessions() {
   }
 }
 
+let currentMessageOffset = 0;
+const MESSAGE_PAGE_SIZE = 30;
+let isLoadingMore = false;
+let allMessagesLoaded = false;
+
 async function selectSession(sid, silent = false) {
   activeSessionId = sid;
+  currentMessageOffset = 0;
+  allMessagesLoaded = false;
   // 更新 UI 高亮
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active', el.querySelector('.session-title')?.textContent && sid === activeSessionId);
   });
 
-  if (silent) return; // 唔加载消息
+  if (silent) return;
 
   try {
-    const data = await HermesAPI.getSession(sid, 30);
-    // 清空聊天
+    const data = await HermesAPI.getSession(sid, MESSAGE_PAGE_SIZE);
     dom.chatMessages.innerHTML = '';
-    // 渲染历史消息
     const messages = data.messages || [];
     messages.forEach(m => {
       const role = m.role === 'user' ? 'user' : m.role === 'assistant' ? 'ai' : 'system';
       const content = m.content || '';
-      if (content.trim()) addChatMessage(role, content);
+      if (content.trim()) addChatMessage(role, content, true);
     });
+    currentMessageOffset = messages.length;
+    if (messages.length < MESSAGE_PAGE_SIZE) allMessagesLoaded = true;
     if (messages.length === 0) {
       addChatMessage('system', `会话 \`${sid.slice(0, 8)}…\` 已加载 · 暂无消息`);
     }
-    // 更新 model 信息
     if (data.model) dom.infoModel.textContent = data.model;
   } catch (e) {
     console.warn('[session]', e.message);
   }
+}
+
+async function loadMoreMessages() {
+  if (!activeSessionId || isLoadingMore || allMessagesLoaded) return;
+  isLoadingMore = true;
+  try {
+    const data = await HermesAPI.getSession(activeSessionId, currentMessageOffset + MESSAGE_PAGE_SIZE);
+    const messages = data.messages || [];
+    if (messages.length <= currentMessageOffset) { allMessagesLoaded = true; isLoadingMore = false; return; }
+    const newMsgs = messages.slice(currentMessageOffset);
+    // 記住當前 scroll 高度
+    const chatEl = dom.chatMessages;
+    const oldScroll = chatEl.scrollHeight;
+    // 插入舊消息到頂部
+    newMsgs.reverse().forEach(m => {
+      const role = m.role === 'user' ? 'user' : m.role === 'assistant' ? 'ai' : 'system';
+      const content = m.content || '';
+      if (content.trim()) {
+        const div = buildChatMessage(role, content);
+        chatEl.insertBefore(div, chatEl.firstChild);
+      }
+    });
+    currentMessageOffset = messages.length;
+    if (newMsgs.length < MESSAGE_PAGE_SIZE) allMessagesLoaded = true;
+    // 保持 scroll 位置
+    chatEl.scrollTop = chatEl.scrollHeight - oldScroll;
+  } catch(e) { console.warn('[loadMore]', e.message) }
+  finally { isLoadingMore = false; }
+}
+
+function buildChatMessage(role, text) {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:8px 0;animation: fade-up 0.3s ease-out;';
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;';
+  const label = document.createElement('span');
+  label.style.cssText = `font-weight:600;color:${role==='user'?'var(--accent-cool)':'var(--brand-primary)'};`;
+  label.textContent = role === 'user' ? 'You' : 'Hermes';
+  header.appendChild(label);
+  div.appendChild(header);
+  const body = document.createElement('div');
+  body.style.cssText = `color:var(--ink);font-size:14px;line-height:1.7;padding:8px 12px;border-radius:var(--radius-sm);background:${role==='user'?'var(--panel-hover)':'var(--brand-glow)'};border:1px solid ${role==='user'?'var(--line)':'rgba(124,92,231,0.15)'};max-width:85%;`;
+  body.innerHTML = renderMarkdown(text);
+  div.appendChild(body);
+  return div;
 }
 
 // ═══════════════════════════════════════════════════════════════
