@@ -309,12 +309,19 @@ code, pre, .mono {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* 半透明底色 + 模糊，遮挡背后图谱，保护阅读 */
   background: var(--console-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   margin: 0;
   border-radius: 0;
+  /* ★ 允許選取文字 */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#chat-messages * {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 #chat-messages::-webkit-scrollbar {
@@ -363,6 +370,8 @@ code, pre, .mono {
   font-family: inherit;
   outline: none;
   transition: border-color var(--transition-ui);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 #msg-input:focus {
