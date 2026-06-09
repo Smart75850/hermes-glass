@@ -1456,19 +1456,22 @@ function init() {
 
   // 語言切換
   function initLangButtons() {
-    document.querySelectorAll('.lang-btn').forEach(btn => {
+    const btns = document.querySelectorAll('.lang-btn');
+    console.log('[lang] found', btns.length, 'buttons');
+    btns.forEach(btn => {
       const lang = btn.dataset.lang;
       btn.classList.toggle('active', lang === getLang());
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        console.log('[lang] switching to', lang);
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        setLang(btn.dataset.lang);
+        setLang(lang);
         refreshUI();
       };
     });
   }
-  initLangButtons();
-  // 設定面板打開時重新綁定（確保 DOM 就緒）
+  setTimeout(initLangButtons, 500);  // 等 DOM 完全就緒
   document.addEventListener('lang:change', () => initLangButtons());
 
   // ACUI 卡片系統
@@ -1508,16 +1511,12 @@ function init() {
 
   // ★ i18n 刷新
   function refreshUI() {
-    const input = document.getElementById('msg-input');
-    if (input) input.placeholder = t('msgPlaceholder');
-    const sendBtn = document.getElementById('send-btn');
-    if (sendBtn) sendBtn.textContent = t('send');
-    // 更新標題
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.dataset.i18n;
-      if (el.placeholder !== undefined) el.placeholder = t(key);
-      else el.textContent = t(key);
-    });
+    try {
+      const input = document.getElementById('msg-input');
+      if (input) input.placeholder = t('msgPlaceholder');
+      const sendBtn = document.getElementById('send-btn');
+      if (sendBtn && !isSending) sendBtn.textContent = t('send');
+    } catch(e) { console.warn('[lang] refreshUI error:', e) }
   }
 
   addChatMessage('system', t('welcome'));
