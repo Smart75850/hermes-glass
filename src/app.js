@@ -1461,11 +1461,16 @@ function init() {
       const lang = btn.dataset.lang;
       btn.classList.toggle('active', lang === getLang());
       btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         setLang(lang);
-        refreshUI();
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === getLang()));
+        // 刷新 UI 文字
+        try {
+          const inp = document.getElementById('msg-input');
+          if (inp) inp.placeholder = t('msgPlaceholder');
+          const sb = document.getElementById('send-btn');
+          if (sb && !isSending) sb.textContent = t('send');
+        } catch(_) {}
       };
     });
   }
@@ -1506,20 +1511,16 @@ function init() {
   setTimeout(loadWorkspacePanel, 4000);
   initMemorySearch();
 
-  // ★ i18n 刷新
-  function refreshUI() {
-    try {
-      const input = document.getElementById('msg-input');
-      if (input) input.placeholder = t('msgPlaceholder');
-      const sendBtn = document.getElementById('send-btn');
-      if (sendBtn && !isSending) sendBtn.textContent = t('send');
-    } catch(e) { console.warn('[lang] refreshUI error:', e) }
-  }
-
   addChatMessage('system', t('welcome'));
   thoughtLine('msg', t('startupLog'));
   thoughtLine('msg', t('connected') + ': Hermes WebUI (127.0.0.1:8788)');
-  refreshUI();
+  // 初始 UI 文字
+  try {
+    const inp = document.getElementById('msg-input');
+    if (inp) inp.placeholder = t('msgPlaceholder');
+    const sb = document.getElementById('send-btn');
+    if (sb) sb.textContent = t('send');
+  } catch(_) {}
   setAiActivity('idle', '空闲');
 
   console.log('✅ Hermes Native UI v0.2.0 initialized');
