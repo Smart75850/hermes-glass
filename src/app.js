@@ -97,8 +97,7 @@ function applyTheme(name) {
 // 面板折叠
 // ═══════════════════════════════════════════════════════════════
 function initPanelCollapse() {
-  let sidebarOpen = true;
-  let infoOpen = true;
+  let sidebarOpen = true, infoOpen = true;
 
   dom.sidebarToggle.addEventListener('click', () => {
     sidebarOpen = !sidebarOpen;
@@ -113,6 +112,29 @@ function initPanelCollapse() {
     dom.infoToggle.classList.toggle('collapsed', !infoOpen);
     dom.infoToggle.textContent = infoOpen ? '▶' : '◀';
   });
+
+  // ★ 拖動調整面板大小
+  function makeResizable(panel, isRight) {
+    let dragging = false, startX, startW;
+    const handle = isRight ? panel.querySelector('::before') : panel.querySelector('::after');
+    panel.addEventListener('mousedown', (e) => {
+      const rect = panel.getBoundingClientRect();
+      const edge = isRight ? (e.clientX - rect.left) : (rect.right - e.clientX);
+      if (edge > -8 && edge < 8) {
+        dragging = true; startX = e.clientX; startW = rect.width;
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const newW = isRight ? startW - (e.clientX - startX) : startW + (e.clientX - startX);
+      const clamped = Math.max(180, Math.min(500, newW));
+      panel.style.width = clamped + 'px';
+      panel.style.minWidth = clamped + 'px';
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+  }
+  try { makeResizable(dom.sidebar, false); makeResizable(dom.infoPanel, true); } catch(_) {}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1455,6 +1477,16 @@ function init() {
   dom.connText.textContent = '已连接 Hermes';
 
   // 語言切換
+  function refreshAllI18n() {
+    try {
+      const inp = document.getElementById('msg-input');
+      if (inp) inp.placeholder = t('msgPlaceholder');
+      const sb = document.getElementById('send-btn');
+      if (sb && !isSending) sb.textContent = t('send');
+      const newBtn = document.getElementById('new-session-btn');
+      if (newBtn) newBtn.textContent = t('newSession');
+    } catch(_) {}
+  }
   function initLangButtons() {
     const btns = document.querySelectorAll('.lang-btn');
     btns.forEach(btn => {
@@ -1464,13 +1496,7 @@ function init() {
         e.preventDefault(); e.stopPropagation();
         setLang(lang);
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === getLang()));
-        // 刷新 UI 文字
-        try {
-          const inp = document.getElementById('msg-input');
-          if (inp) inp.placeholder = t('msgPlaceholder');
-          const sb = document.getElementById('send-btn');
-          if (sb && !isSending) sb.textContent = t('send');
-        } catch(_) {}
+        refreshAllI18n();
       };
     });
   }
@@ -1515,12 +1541,7 @@ function init() {
   thoughtLine('msg', t('startupLog'));
   thoughtLine('msg', t('connected') + ': Hermes WebUI (127.0.0.1:8788)');
   // 初始 UI 文字
-  try {
-    const inp = document.getElementById('msg-input');
-    if (inp) inp.placeholder = t('msgPlaceholder');
-    const sb = document.getElementById('send-btn');
-    if (sb) sb.textContent = t('send');
-  } catch(_) {}
+  refreshAllI18n();
   setAiActivity('idle', '空闲');
 
   console.log('✅ Hermes Native UI v0.2.0 initialized');

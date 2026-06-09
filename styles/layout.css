@@ -411,6 +411,30 @@ code, pre, .mono {
   transform: none;
 }
 
+/* ── 面板拖動調整大小 ── */
+#session-sidebar { position: relative; }
+#session-sidebar::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0;
+  width: 5px; cursor: ew-resize; z-index: 99;
+}
+#session-sidebar:hover::after { background: rgba(255,255,255,0.05); }
+
+#info-panel { position: relative; }
+#info-panel::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 5px; cursor: ew-resize; z-index: 99;
+}
+#info-panel:hover::before { background: rgba(255,255,255,0.05); }
+
+/* 折疊後背景：毛玻璃遮罩 */
+.panel-backdrop {
+  position: fixed; inset: 0; z-index: 1;
+  background: var(--panel); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none; opacity: 0; transition: opacity 0.4s;
+}
+.panel-backdrop.visible { opacity: 1; }
+
 /* ── 折叠按钮 ── */
 .panel-toggle {
   position: absolute;
