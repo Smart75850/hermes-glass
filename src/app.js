@@ -1455,15 +1455,21 @@ function init() {
   dom.connText.textContent = '已连接 Hermes';
 
   // 語言切換
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setLang(btn.dataset.lang);
-      refreshUI();
+  function initLangButtons() {
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      const lang = btn.dataset.lang;
+      btn.classList.toggle('active', lang === getLang());
+      btn.onclick = () => {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setLang(btn.dataset.lang);
+        refreshUI();
+      };
     });
-    btn.classList.toggle('active', btn.dataset.lang === getLang());
-  });
+  }
+  initLangButtons();
+  // 設定面板打開時重新綁定（確保 DOM 就緒）
+  document.addEventListener('lang:change', () => initLangButtons());
 
   // ACUI 卡片系統
   initACUI(document.getElementById('acui-host'));

@@ -235,7 +235,9 @@ export function initVoicePanel({canvasId,voiceBtnId,getMsgInput}={}){
       ctx.fillText('🎤 REC',cx,cy+R+22);
     }
 
-    anim=requestAnimationFrame(draw);
+    // ★ 效能：idle 時降幀到 20fps，活躍時 60fps
+    const fps = (state==='idle') ? 50 : 16;
+    setTimeout(()=>{anim=requestAnimationFrame(draw)}, fps);
   }
   draw();
 
