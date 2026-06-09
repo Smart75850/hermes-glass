@@ -1457,22 +1457,19 @@ function init() {
   // 語言切換
   function initLangButtons() {
     const btns = document.querySelectorAll('.lang-btn');
-    console.log('[lang] found', btns.length, 'buttons');
     btns.forEach(btn => {
       const lang = btn.dataset.lang;
       btn.classList.toggle('active', lang === getLang());
       btn.onclick = (e) => {
         e.preventDefault();
-        console.log('[lang] switching to', lang);
-        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+        e.stopPropagation();
         setLang(lang);
         refreshUI();
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === getLang()));
       };
     });
   }
-  setTimeout(initLangButtons, 500);  // 等 DOM 完全就緒
-  document.addEventListener('lang:change', () => initLangButtons());
+  setTimeout(initLangButtons, 300);
 
   // ACUI 卡片系統
   initACUI(document.getElementById('acui-host'));
