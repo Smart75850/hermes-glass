@@ -1,5 +1,5 @@
 // Hermes Glass — PWA Service Worker
-const CACHE = 'hermes-glass-v1';
+const CACHE = 'hermes-glass-v2';
 const ASSETS = [
   '/static/native/index.html',
   '/static/native/src/app.js',
