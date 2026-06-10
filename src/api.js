@@ -66,7 +66,7 @@ export const HermesAPI = {
         session_id: sessionId,
         message,
         model: 'deepseek-v4-pro',
-        workspace: (location.hostname==='127.0.0.1'?'C:/Users/guohu/workspace':'~/workspace'),
+        workspace: '/Users/apple/workspace',
         ...opts,
       }),
     });
