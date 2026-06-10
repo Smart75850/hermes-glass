@@ -856,7 +856,7 @@ function initChat() {
     dom.newSessionBtn.textContent = '创建中…';
     try {
       const result = await HermesAPI.createSession();
-      activeSessionId = result.session_id;
+      activeSessionId = result.session?.session_id || result.session_id;
       dom.chatMessages.innerHTML = '';
       addChatMessage('system', `新会话已创建: \`${activeSessionId.slice(0, 8)}…\``);
       thoughtLine('msg', `新会话: ${activeSessionId.slice(0, 12)}…`);
@@ -890,7 +890,7 @@ async function sendMessage() {
   if (!activeSessionId) {
     try {
       const result = await HermesAPI.createSession();
-      activeSessionId = result.session_id;
+      activeSessionId = result.session?.session_id || result.session_id;
       loadSessions();
       thoughtLine('msg', `新会话已创建: ${activeSessionId.slice(0, 8)}…`);
     } catch (e) {
