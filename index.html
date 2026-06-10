@@ -362,6 +362,16 @@ window.addEventListener('error', function(e) {
 });
 </script>
 
+<!-- ══ 清除所有残留 Service Worker ══ -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) { r.unregister(); });
+    console.log('🧹 Unregistered ' + regs.length + ' old SW(s)');
+  }).catch(function(){});
+}
+</script>
+
 <!-- ══ 应用入口 (带错误捕获) ══ -->
 <script type="module">
 var ov = document.getElementById('error-overlay');

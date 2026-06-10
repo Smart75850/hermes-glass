@@ -1337,9 +1337,10 @@ async function loadWorkspacePanel() {
   link.rel = 'manifest';
   link.href = '/static/native/manifest.json';
   document.head.appendChild(link);
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/native/sw.js').catch(() => {});
-  }
+  // Service Worker 禁用 — 开发阶段拦截 API POST 请求导致失败
+  // if ('serviceWorker' in navigator) {
+  //   navigator.serviceWorker.register('/static/native/sw.js').catch(() => {});
+  // }
 })();
 
 function initMemorySearch() {
