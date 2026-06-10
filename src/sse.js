@@ -12,7 +12,7 @@
  */
 
 export function connectChatStream(streamId, callbacks = {}) {
-  const base = (location.hostname === '127.0.0.1' && location.port === '8788') ? '' : 'http://127.0.0.1:8788';
+  const base = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? '' : `http://127.0.0.1:${location.port}`;
   const url = `${base}/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`;
   const source = new EventSource(url);
 

@@ -1,12 +1,13 @@
 /**
  * Hermes Native UI — API Client
- * 直连 Hermes WebUI 后端 (端口 8788)
+ * 直连 Hermes WebUI 后端
+ * API_BASE 动态检测，唔再写死端口
  */
 
-// 自动检测：如果用 Hermes WebUI 同源，用相对路径；否则用完整 URL
-const API_BASE = (location.hostname === '127.0.0.1' && location.port === '8788')
-  ? ''  // 同源，冇 CORS 问题
-  : 'http://127.0.0.1:8788';
+// 自动检测当前端口，同源用相对路径（避免 CORS + Service Worker 缓存）
+const API_BASE = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+  ? ''  // 同源：相对路径，自动跟当前端口
+  : `http://127.0.0.1:${location.port}`;
 
 async function api(path, opts = {}) {
   const url = `${API_BASE}${path}`;

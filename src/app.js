@@ -13,7 +13,7 @@ import { t, getLang, setLang } from './i18n.js';
 // 配置常量
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
-  API_BASE: 'http://127.0.0.1:8788',
+  API_BASE: `http://127.0.0.1:${location.port}`,
   THEME_KEY: 'hermes-ui-theme',
   GRAPH_TOGGLE_KEY: 'hermes-graph-visible',
   DEFAULT_THEME: 'midnight',
