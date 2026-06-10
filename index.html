@@ -349,7 +349,30 @@
 <!-- ══ ACUI 卡片宿主 ══ -->
 <div id="acui-host"></div>
 
-<!-- ══ 应用入口 ══ -->
-<script type="module" src="src/app.js?v=3"></script>
+<!-- ══ 错误捕获层 ══ -->
+<div id="error-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;color:#f87171;font-family:monospace;padding:40px;overflow:auto;white-space:pre-wrap;"></div>
+<script>
+window.__errors = [];
+window.addEventListener('error', function(e) {
+  var el = document.getElementById('error-overlay');
+  var msg = (e.message || e.error?.message || String(e)) + '\n\n' + (e.filename || '') + ':' + (e.lineno || '');
+  window.__errors.push(msg);
+  if (el) { el.style.display = 'block'; el.textContent = '❌ JS ERROR:\n\n' + window.__errors.join('\n\n---\n\n'); }
+  console.error('Hermes Glass Error:', e);
+});
+</script>
+
+<!-- ══ 应用入口 (带错误捕获) ══ -->
+<script type="module">
+var ov = document.getElementById('error-overlay');
+try {
+  await import('./src/app.js?v=4');
+  console.log('✅ Hermes Glass loaded');
+} catch(e) {
+  ov.style.display = 'block';
+  ov.textContent = '❌ 模块加载失败:\n\n' + (e.stack || e.message || String(e));
+  console.error('Hermes Glass:', e);
+}
+</script>
 </body>
 </html>
