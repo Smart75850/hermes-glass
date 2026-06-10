@@ -37,7 +37,7 @@ export const HermesAPI = {
     return api('/api/session/new', {
       method: 'POST',
       body: JSON.stringify({
-        workspace: opts.workspace || (location.hostname==='127.0.0.1'?'C:/Users/guohu/workspace':'~/workspace'),
+        workspace: opts.workspace || '/Users/apple/workspace',
         profile: opts.profile || 'default',
         ...opts,
       }),
