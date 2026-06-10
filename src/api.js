@@ -31,11 +31,13 @@ export const HermesAPI = {
 
   async getSession(sessionId, messageLimit = 0) {
     const params = new URLSearchParams({ session_id: sessionId, messages: String(messageLimit), resolve_model: '0' });
-    return api(`/api/session?${params}`);
+    const data = await api(`/api/session?${params}`);
+    // Normalize: API returns {session: {...}}, normalize to flat object
+    return data.session || data;
   },
 
   async createSession(opts = {}) {
-    return api('/api/session/new', {
+    const data = await api('/api/session/new', {
       method: 'POST',
       body: JSON.stringify({
         workspace: opts.workspace || '/Users/apple/workspace',
@@ -43,6 +45,8 @@ export const HermesAPI = {
         ...opts,
       }),
     });
+    // Normalize: API returns {session: {session_id, ...}}, normalize to {session_id, ...}
+    return data.session || data;
   },
 
   async deleteSession(sessionId) {
