@@ -346,43 +346,54 @@
   </div>
 </div>
 
-<!-- ══ ACUI 卡片宿主 ══ -->
+<!-- �剥削 ACUI 卡片宿主 ══ -->
 <div id="acui-host"></div>
 
-<!-- ══ 错误捕获层 ══ -->
-<div id="error-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;color:#f87171;font-family:monospace;padding:40px;overflow:auto;white-space:pre-wrap;"></div>
-<script>
-window.__errors = [];
-window.addEventListener('error', function(e) {
-  var el = document.getElementById('error-overlay');
-  var msg = (e.message || e.error?.message || String(e)) + '\n\n' + (e.filename || '') + ':' + (e.lineno || '');
-  window.__errors.push(msg);
-  if (el) { el.style.display = 'block'; el.textContent = '❌ JS ERROR:\n\n' + window.__errors.join('\n\n---\n\n'); }
-  console.error('Hermes Glass Error:', e);
-});
-</script>
+<!-- ══ 启动状态显示 ══ -->
+<div id="startup-banner" style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#0a0a1a;color:#fbbf24;font-family:monospace;padding:16px 24px;font-size:13px;border-bottom:1px solid #fbbf2433;">
+  ⚡ 启动中...
+</div>
 
-<!-- ══ 清除所有残留 Service Worker ══ -->
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); });
-    console.log('🧹 Unregistered ' + regs.length + ' old SW(s)');
-  }).catch(function(){});
-}
-</script>
+(function() {
+  var banner = document.getElementById('startup-banner');
+  function log(msg, color) {
+    banner.innerHTML += '<br><span style="color:'+(color||'#94a3b8')+'">'+msg+'</span>';
+    console.log('[Hermes Glass]', msg);
+  }
 
-<!-- ══ 应用入口 (带错误捕获) ══ -->
-<script type="module">
-var ov = document.getElementById('error-overlay');
-try {
-  await import('./src/app.js?v=4');
-  console.log('✅ Hermes Glass loaded');
-} catch(e) {
-  ov.style.display = 'block';
-  ov.textContent = '❌ 模块加载失败:\n\n' + (e.stack || e.message || String(e));
-  console.error('Hermes Glass:', e);
-}
+  async function boot() {
+    log('1. 清除 Service Worker...');
+    if ('serviceWorker' in navigator) {
+      try {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        log('   搵到 '+regs.length+' 个 SW');
+        for (var r of regs) {
+          var ok = await r.unregister();
+          log((ok?'   ✅ ':'   ⚠️ ')+r.scope, ok?'#4ade80':'#f87171');
+        }
+      } catch(e) { log('   ⚠️ '+e.message, '#fbbf24'); }
+    }
+
+    log('2. 清除缓存...');
+    try {
+      var names = await caches.keys();
+      for (var n of names) { await caches.delete(n); }
+    } catch(e) {}
+
+    log('3. 加载应用...');
+    try {
+      await import('./src/app.js?v=5');
+      log('✅ Hermes Glass 启动成功!', '#4ade80');
+      setTimeout(function(){ banner.style.display='none'; }, 500);
+    } catch(e) {
+      log('❌ '+ (e.stack || e.message || String(e)), '#f87171');
+      banner.style.borderColor = '#f8717133';
+    }
+  }
+
+  boot();
+})();
 </script>
 </body>
 </html>
