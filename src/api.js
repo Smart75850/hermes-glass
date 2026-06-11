@@ -88,35 +88,19 @@ export const HermesAPI = {
     return api(`/api/chat/stream/status?stream_id=${encodeURIComponent(streamId)}`);
   },
 
-  // ── Memory (from memory_server.py on port 8791) ──
-  async getMemoryGraph() {
-    const res = await fetch('http://127.0.0.1:8791/api/memory/graph');
-    return res.json();
+  // ── Memory Bridge (port 8791) — 经 fetch 直连，优雅降级 ──
+  async _fetchMemory(path) {
+    try {
+      const res = await fetch(`http://127.0.0.1:8791${path}`);
+      return res.ok ? res.json() : null;
+    } catch { return null; }
   },
-
-  async getFocusStack() {
-    const res = await fetch('http://127.0.0.1:8791/api/memory/focus');
-    return res.json();
-  },
-
-  async searchMemory(query, limit = 20) {
-    const res = await fetch(`http://127.0.0.1:8791/api/memory/search?q=${encodeURIComponent(query)}&limit=${limit}`);
-    return res.json();
-  },
-
-  // ── Cron + Workspace (from memory_server.py :8791) ──
-  async getCronJobs() {
-    const res = await fetch('http://127.0.0.1:8791/api/cron');
-    return res.json();
-  },
-  async getWorkspace(subpath = '') {
-    const res = await fetch(`http://127.0.0.1:8791/api/workspace?path=${encodeURIComponent(subpath)}`);
-    return res.json();
-  },
-  async getKanban() {
-    const res = await fetch('http://127.0.0.1:8791/api/kanban');
-    return res.json();
-  },
+  async getMemoryGraph()    { return this._fetchMemory('/api/memory/graph') || { nodes: [], links: [] }; },
+  async getFocusStack()     { return this._fetchMemory('/api/memory/focus') || { focus: [], stack: [] }; },
+  async searchMemory(q, n)  { return this._fetchMemory(`/api/memory/search?q=${encodeURIComponent(q)}&limit=${n||20}`) || []; },
+  async getCronJobs()       { return this._fetchMemory('/api/cron') || []; },
+  async getWorkspace(p)     { return this._fetchMemory(`/api/workspace?path=${encodeURIComponent(p||'')}`) || { entries: [] }; },
+  async getKanban()         { return this._fetchMemory('/api/kanban') || { todo:[], in_progress:[], done:[] }; },
 
   async getMemory() {
     const data = await api('/api/memory');

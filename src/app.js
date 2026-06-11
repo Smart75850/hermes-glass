@@ -388,6 +388,7 @@ function initMemoryGraph() {
   const W = window.innerWidth;
   const H = window.innerHeight;
 
+  if (typeof d3 === 'undefined') { console.warn('D3 not loaded'); return; }
   const svg = d3.select('#graph-svg')
     .attr('width', W).attr('height', H);
 
@@ -998,7 +999,7 @@ async function sendMessage() {
       const active = sessions.find(s => s.session_id === activeSessionId);
       if (active?.active_stream_id) {
         await HermesAPI.chatCancel(active.active_stream_id);
-        console.log('[send] cancelled previous stream:', active.active_stream_id);
+        // Stream cancelled — previous session context cleaned
       }
     } catch (_) {}
 
@@ -1552,7 +1553,6 @@ function init() {
   function step(msg, ok) {
     steps.push((ok?'✅':'❌')+' '+msg);
     debugEl.textContent = steps.join('\n');
-    console.log('[Init]', msg, ok?'OK':'FAIL');
   }
   function safe(fn, name) {
     try { fn(); step(name, true); } catch(e) { step(name+' — '+e.message, false); }
