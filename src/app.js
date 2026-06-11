@@ -874,23 +874,26 @@ function initChat() {
     dom.newSessionBtn.disabled = true;
     dom.newSessionBtn.textContent = '创建中…';
     try {
-      // 1. 取消旧会话嘅活跃 stream（Gateway 端）
-      const oldState = getSessionState(activeSessionId);
+      // 1. 取消旧会话嘅活跃 stream（Gateway + 客户端）
+      const oldSid = activeSessionId;
+      const oldState = getSessionState(oldSid);
       if (oldState.streamId) {
         try { await HermesAPI.chatCancel(oldState.streamId); } catch(_) {}
       }
-      // 2. 断开客户端 SSE
       if (oldState.stream) {
         try { oldState.stream.cancel(); } catch(_) {}
       }
-      // 3. 清除旧会话状态
-      sessionStates.delete(activeSessionId);
-      restoreSendButton();
-      dom.sendBtn.disabled = false;
+      oldState.stream = null;
+      oldState.streamId = null;
 
-      // 4. 创建新会话
+      // 2. 创建新会话（先创建，获取 ID）
       const result = await HermesAPI.createSession();
       activeSessionId = result.session?.session_id || result.session_id;
+
+      // 3. 而家先同步按钮（用新 session ID）
+      syncButtonForSession();
+      dom.sendBtn.disabled = false;
+
       dom.chatMessages.innerHTML = '';
       addChatMessage('system', `新会话已创建: \`${activeSessionId.slice(0, 8)}…\``);
       thoughtLine('msg', `新会话: ${activeSessionId.slice(0, 12)}…`);
