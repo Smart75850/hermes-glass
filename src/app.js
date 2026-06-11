@@ -24,7 +24,8 @@ const CONFIG = {
 // 全局状态
 // ═══════════════════════════════════════════════════════════════
 let activeSessionId = null;
-let activeStream = null;  // 当前活跃嘅 SSE 连接
+let activeStream = null;  // 当前活跃嘅 SSE 连接 (EventSource)
+let activeStreamId = null;  // 当前活跃嘅 stream_id (用于取消 Gateway 端流)
 
 // ═══════════════════════════════════════════════════════════════
 // DOM 引用
@@ -855,6 +856,21 @@ function initChat() {
     dom.newSessionBtn.disabled = true;
     dom.newSessionBtn.textContent = '创建中…';
     try {
+      // 1. 取消旧会话嘅活跃 stream（Gateway 端）
+      if (activeStreamId) {
+        try { await HermesAPI.chatCancel(activeStreamId); } catch(_) {}
+      }
+      // 2. 断开客户端 SSE
+      if (activeStream) {
+        try { activeStream.cancel(); } catch(_) {}
+        activeStream = null;
+      }
+      activeStreamId = null;
+      // 3. 解除发送锁
+      isSending = false;
+      dom.sendBtn.disabled = false;
+
+      // 4. 创建新会话
       const result = await HermesAPI.createSession();
       activeSessionId = result.session?.session_id || result.session_id;
       dom.chatMessages.innerHTML = '';
@@ -909,6 +925,7 @@ async function sendMessage() {
   if (activeStream) {
     activeStream.cancel();
     activeStream = null;
+    activeStreamId = null;
   }
 
   setAiActivity('thinking', '思考中…');
@@ -928,6 +945,7 @@ async function sendMessage() {
     const startResult = await HermesAPI.chatStart(activeSessionId, text);
     const streamId = startResult.stream_id;
     if (!streamId) throw new Error('No stream_id returned');
+    activeStreamId = streamId;  // 记录当前 stream，新会话创建时取消
 
     thoughtLine('msg', `流式连接已建立`);
 
@@ -943,6 +961,7 @@ async function sendMessage() {
     // 先移除舊 listener，再加新嘅
     const stopHandler = () => {
       if (activeStream) { activeStream.cancel(); activeStream = null; }
+      activeStreamId = null;
       if (window.__voice) window.__voice.setState('idle');
       finalizeLiveBubble(liveText);
       if (liveText) addChatMessage('ai', liveText);
@@ -990,6 +1009,7 @@ async function sendMessage() {
         window.__voice?.setState('idle');
         thoughtLine('msg', `回复完成 · ${finalText.length} 字符 · ${toolCalls.length} 次工具调用`);
         activeStream = null;
+        activeStreamId = null;
         // ★ 恢復發送掣
         const sb = document.getElementById('send-btn');
         if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
@@ -1000,6 +1020,7 @@ async function sendMessage() {
       onError(err) {
         console.warn('[SSE]', err);
         if (activeStream) { finalizeLiveBubble(liveText); activeStream = null; }
+        activeStreamId = null;
         setAiActivity('idle', '空闲');
         const sb = document.getElementById('send-btn');
         if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
@@ -1007,6 +1028,7 @@ async function sendMessage() {
       },
       onCancel() {
         activeStream = null;
+        activeStreamId = null;
         const sb = document.getElementById('send-btn');
         if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
         isSending = false; setAiActivity('idle', '空闲');
@@ -1461,21 +1483,37 @@ async function loadMemoryForGraph() {
 // 初始化（Phase 2 升级版）
 // ═══════════════════════════════════════════════════════════════
 function init() {
-  console.log('⚚ Hermes Glass v1.0 — Cognitive Surface');
-  console.log('   Backend: Hermes WebUI (port 8788)');
+  // ═══ Safari Debug — 写日志到页面 ═══
+  var debugEl = document.createElement('div');
+  debugEl.id = '__hermes_debug';
+  debugEl.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#000;color:#0f0;font:11px monospace;padding:8px 12px;max-height:200px;overflow-y:auto;';
+  document.body.prepend(debugEl);
+  var steps = [];
+  function step(msg, ok) {
+    steps.push((ok?'✅':'❌')+' '+msg);
+    debugEl.textContent = steps.join('\n');
+    console.log('[Init]', msg, ok?'OK':'FAIL');
+  }
+  function safe(fn, name) {
+    try { fn(); step(name, true); } catch(e) { step(name+' — '+e.message, false); }
+  }
 
-  initTheme();
-  initPanelCollapse();
-  initThoughtStreamCollapse();
-  initMemoryGraph();
-  initChat();
-  initSlashMenu();
-  initSettings();
+  step('⚚ Hermes Glass', true);
+
+  safe(function(){ initTheme(); }, 'initTheme');
+  safe(function(){ initPanelCollapse(); }, 'initPanelCollapse');
+  safe(function(){ initThoughtStreamCollapse(); }, 'initThoughtStreamCollapse');
+  safe(function(){ initMemoryGraph(); }, 'initMemoryGraph');
+  safe(function(){ initChat(); }, 'initChat');
+  safe(function(){ initSlashMenu(); }, 'initSlashMenu');
+  safe(function(){ initSettings(); }, 'initSettings');
 
   // 连接状态
-  dom.infoStatus.innerHTML = '● 在线';
-  dom.connDot.className = 'status-dot online';
-  dom.connText.textContent = '已连接 Hermes';
+  safe(function(){
+    dom.infoStatus.innerHTML = '● 在线';
+    dom.connDot.className = 'status-dot online';
+    dom.connText.textContent = '已连接 Hermes';
+  }, 'connectionStatus');
 
   // 語言切換
   function refreshAllI18n() {
@@ -1504,48 +1542,55 @@ function init() {
   setTimeout(initLangButtons, 300);
 
   // ACUI 卡片系統
-  initACUI(document.getElementById('acui-host'));
+  safe(function(){ initACUI(document.getElementById('acui-host')); }, 'initACUI');
 
   // 語音面板 + Push-to-Talk
-  const voice = initVoicePanel({
-    canvasId: 'voice-canvas', voiceBtnId: 'voice-btn',
-    getMsgInput: () => dom.msgInput,
-    getSendFn: () => sendMessage,
-  });
-  voice.onTranscript((text, isFinal) => {
-    if (!text) return;
-    // voice.js 已直接 set input.value（append 模式），呢度淨係 log
-    dom.msgInput.focus();
-    if (isFinal) {
-      thoughtLine('msg', `🎤 ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`);
+  var voice = null;
+  safe(function(){
+    voice = initVoicePanel({
+      canvasId: 'voice-canvas', voiceBtnId: 'voice-btn',
+      getMsgInput: () => dom.msgInput,
+      getSendFn: () => sendMessage,
+    });
+    if (voice && voice.onTranscript) {
+      voice.onTranscript((text, isFinal) => {
+        if (!text) return;
+        dom.msgInput.focus();
+        if (isFinal) {
+          thoughtLine('msg', '🎤 ' + text.slice(0, 60));
+        }
+      });
     }
-  });
-  window.__voice = voice;
+    window.__voice = voice;
+  }, 'initVoice');
 
   // 快捷操作按鈕
-  $('qa-new-session')?.addEventListener('click', ()=>{ dom.newSessionBtn?.click() });
-  $('qa-clear-chat')?.addEventListener('click', ()=>{ dom.chatMessages.innerHTML=''; addChatMessage('system','聊天已清空') });
-  $('qa-reset-graph')?.addEventListener('click', ()=>{ const btn=$('qa-reset-graph'); if(btn) window.__memoryGraph?.svg?.transition().duration(500).call(window.__memoryGraph.zoom?.transform, d3.zoomIdentity) });
-  $('qa-graph-toggle')?.addEventListener('click', ()=>{ dom.graphToggleBtn?.click() });
+  safe(function(){
+    $('qa-new-session')?.addEventListener('click', ()=>{ dom.newSessionBtn?.click() });
+    $('qa-clear-chat')?.addEventListener('click', ()=>{ dom.chatMessages.innerHTML=''; addChatMessage('system','聊天已清空') });
+    $('qa-reset-graph')?.addEventListener('click', ()=>{ const btn=$('qa-reset-graph'); if(btn) window.__memoryGraph?.svg?.transition().duration(500).call(window.__memoryGraph.zoom?.transform, d3.zoomIdentity) });
+    $('qa-graph-toggle')?.addEventListener('click', ()=>{ dom.graphToggleBtn?.click() });
+  }, 'qaButtons');
 
   // 加載真實數據
-  loadSessions();
-  setTimeout(loadMemoryForGraph, 1500);
-  setTimeout(loadFocusList, 2000);
-  setTimeout(loadTokenUsage, 2500);
-  setTimeout(loadCronCards, 3000);
-  setTimeout(loadCronPanel, 3500);
-  setTimeout(loadWorkspacePanel, 4000);
-  initMemorySearch();
+  safe(function(){ loadSessions(); }, 'loadSessions');
+  safe(function(){ setTimeout(loadMemoryForGraph, 1500); }, 'loadMemoryGraph');
+  safe(function(){ setTimeout(loadFocusList, 2000); }, 'loadFocusList');
+  safe(function(){ setTimeout(loadTokenUsage, 2500); }, 'loadTokenUsage');
+  safe(function(){ setTimeout(loadCronCards, 3000); }, 'loadCronCards');
+  safe(function(){ setTimeout(loadWorkspacePanel, 4000); }, 'loadWorkspace');
+  safe(function(){ initMemorySearch(); }, 'initMemorySearch');
 
-  addChatMessage('system', t('welcome'));
-  thoughtLine('msg', t('startupLog'));
-  thoughtLine('msg', t('connected') + ': Hermes WebUI (127.0.0.1:8788)');
-  // 初始 UI 文字
-  refreshAllI18n();
-  setAiActivity('idle', '空闲');
+  safe(function(){
+    addChatMessage('system', t('welcome'));
+    thoughtLine('msg', t('startupLog'));
+    thoughtLine('msg', t('connected') + ': Hermes WebUI');
+  }, 'welcomeMessage');
 
-  console.log('✅ Hermes Native UI v0.2.0 initialized');
+  safe(function(){ refreshAllI18n(); setAiActivity('idle', '空闲'); }, 'finalUI');
+
+  step('✅ Init complete!', true);
+  setTimeout(function(){ debugEl.style.display='none'; }, 8000);
 }
 
 // 启动
