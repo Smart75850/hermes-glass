@@ -906,27 +906,40 @@ function initChat() {
 
 let isSending = false;
 
-/** 恢复发送掣 — 清除 DOM 上嘅 stopHandler，重新绑定 sendMessage */
-function restoreSendButton() {
+/** 根据当前 session 状态同步按钮 UI */
+function syncButtonForSession() {
   const sb = document.getElementById('send-btn');
   if (!sb) return;
-  // 清除 DOM 上任何旧嘅 stopHandler
+  const state = activeSessionId ? getSessionState(activeSessionId) : null;
+
+  // 先彻底清除所有监听器
   if (domStopHandler) {
     sb.removeEventListener('click', domStopHandler);
     domStopHandler = null;
   }
   sb.removeEventListener('click', sendMessage);
-  sb.addEventListener('click', sendMessage);
-  sb.textContent = t('send');
-  sb.style.background = '';
-  sb.style.color = '';
-  sb.disabled = false;
-  // 更新当前 session 状态
-  if (activeSessionId) {
-    const state = getSessionState(activeSessionId);
-    state.isSending = false;
-    state.stopHandler = null;
+
+  if (state && state.isSending && state.stopHandler) {
+    // 当前 session 有活跃 stream → 停止掣
+    sb.textContent = '停止';
+    sb.style.background = '#ff4444'; sb.style.color = '#fff';
+    sb.disabled = false;
+    sb.addEventListener('click', state.stopHandler);
+    domStopHandler = state.stopHandler;
+  } else {
+    // 冇活跃 stream → 发送掣
+    sb.textContent = t('send');
+    sb.style.background = ''; sb.style.color = '';
+    sb.disabled = false;
+    sb.addEventListener('click', sendMessage);
+    domStopHandler = null;
+    if (state) { state.isSending = false; state.stopHandler = null; }
   }
+}
+
+/** 恢复发送掣 — 清除 DOM 上嘅 stopHandler，重新绑定 sendMessage */
+function restoreSendButton() {
+  syncButtonForSession();
 }
 
 function showSlashHelp() {
@@ -999,13 +1012,7 @@ async function sendMessage() {
     let liveText = '';
     if (window.__voice) window.__voice.setState('thinking');  // ★ 一開始等待就顯示思考
     // ★ 切換發送掣→停止掣
-  const btn = document.getElementById('send-btn');
-  if (btn) {
-    btn.textContent = '停止';
-    btn.style.background = '#ff4444'; btn.style.color = '#fff';
-    btn.disabled = false;
-    // 先移除舊 listener，再加新嘅
-    const stopHandler = () => {
+  const stopHandler = () => {
       const st = getSessionState(owningSessionId);
       if (st.stream) { st.stream.cancel(); st.stream = null; }
       st.streamId = null;
@@ -1018,10 +1025,7 @@ async function sendMessage() {
       else { st.isSending = false; st.stopHandler = null; }
     };
     state.stopHandler = stopHandler;
-    domStopHandler = stopHandler;  // 记录 DOM 上当前嘅 stop handler
-    btn.removeEventListener('click', sendMessage);
-    btn.addEventListener('click', stopHandler);
-  }
+    syncButtonForSession();  // 统一刷新按钮到停止状态
 
   state.stream = connectChatStream(streamId, {
       onToken(token, fullText) {
@@ -1206,27 +1210,8 @@ async function selectSession(sid, silent = false) {
   currentMessageOffset = 0;
   allMessagesLoaded = false;
 
-  // 恢复新会话嘅按钮状态
-  const newState = getSessionState(sid);
-  // 先清除 DOM 上旧嘅 stopHandler（来自上一个会话）
-  const btn = document.getElementById('send-btn');
-  if (btn && domStopHandler) {
-    btn.removeEventListener('click', domStopHandler);
-    domStopHandler = null;
-  }
-  if (newState.isSending && newState.stopHandler) {
-    // 新会话有活跃 stream → 显示停止掣
-    if (btn) {
-      btn.textContent = '停止';
-      btn.style.background = '#ff4444'; btn.style.color = '#fff';
-      btn.removeEventListener('click', sendMessage);
-      btn.addEventListener('click', newState.stopHandler);
-      domStopHandler = newState.stopHandler;
-    }
-  } else {
-    // 新会话冇活跃 stream → 显示发送掣
-    restoreSendButton();
-  }
+  // 同步按钮状态到新会话
+  syncButtonForSession();
 
   // 更新 UI 高亮
   document.querySelectorAll('.session-item').forEach(el => {
