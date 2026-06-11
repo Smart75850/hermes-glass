@@ -1025,8 +1025,9 @@ async function sendMessage() {
       if (liveText) addChatMessage('ai', liveText);
       thoughtLine('msg', '已停止生成');
       // 如果当前显示嘅就系呢个 session，恢复按钮
+      st.isSending = false;
+      st.stopHandler = null;
       if (activeSessionId === owningSessionId) restoreSendButton();
-      else { st.isSending = false; st.stopHandler = null; }
     };
     state.stopHandler = stopHandler;
     syncButtonForSession();  // 统一刷新按钮到停止状态
@@ -1226,6 +1227,10 @@ async function selectSession(sid, silent = false) {
 
   if (silent) return;
 
+  // 如果当前 session 有活跃 stream（liveBubble），先保存再恢复
+  const savedLiveHTML = liveBubbleEl ? liveBubbleEl.outerHTML : null;
+  const hasLiveBubble = !!liveBubbleEl;
+
   try {
     const data = await HermesAPI.getSession(sid, MESSAGE_PAGE_SIZE);
     dom.chatMessages.innerHTML = '';
@@ -1235,9 +1240,16 @@ async function selectSession(sid, silent = false) {
       const content = m.content || '';
       if (content.trim()) addChatMessage(role, content, true);
     });
+    // 如果切换前有 live bubble（stream 紧），恢复佢
+    if (hasLiveBubble && savedLiveHTML && getSessionState(sid).isSending) {
+      const temp = document.createElement('div');
+      temp.innerHTML = savedLiveHTML;
+      liveBubbleEl = temp.firstElementChild;
+      if (liveBubbleEl) dom.chatMessages.appendChild(liveBubbleEl);
+    }
     currentMessageOffset = messages.length;
     if (messages.length < MESSAGE_PAGE_SIZE) allMessagesLoaded = true;
-    if (messages.length === 0) {
+    if (messages.length === 0 && !hasLiveBubble) {
       addChatMessage('system', `会话 \`${sid.slice(0, 8)}…\` 已加载 · 暂无消息`);
     }
     if (data.model) dom.infoModel.textContent = data.model;
