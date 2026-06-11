@@ -1033,29 +1033,31 @@ async function sendMessage() {
   state.stream = connectChatStream(streamId, {
       onToken(token, fullText) {
         liveText = fullText;
-        updateLiveBubble(liveText);
-        if (window.__voice) window.__voice.setState('speaking');
+        if (activeSessionId === owningSessionId) updateLiveBubble(liveText);
+        if (activeSessionId === owningSessionId && window.__voice) window.__voice.setState('speaking');
       },
       onReasoning(text) {
-        if (window.__voice) window.__voice.setState('thinking');
-      },
-      onReasoning(text) {
-        setAiActivity('thinking', '推理中…');
-        updateLiveBubble(liveText + '\n\n_💭 推理中…_');
+        if (activeSessionId === owningSessionId) {
+          if (window.__voice) window.__voice.setState('thinking');
+          setAiActivity('thinking', '推理中…');
+          updateLiveBubble(liveText + '\n\n_💭 推理中…_');
+        }
       },
       onTool(tc) {
-        setAiActivity('executing', tc.name);
-        window.__voice?.setState('speaking');  // 工具調用 = 紫色脈衝
-        thoughtLine('tool', `${tc.name}: ${(tc.preview || JSON.stringify(tc.args||{}).slice(0, 80))}`, tc.name, true);
-        const toolNote = `\n\n> 🔧 **${tc.name}** _执行中…_`;
-        updateLiveBubble(liveText + toolNote);
+        if (activeSessionId === owningSessionId) {
+          setAiActivity('executing', tc.name);
+          window.__voice?.setState('speaking');
+          thoughtLine('tool', `${tc.name}: ${(tc.preview || JSON.stringify(tc.args||{}).slice(0, 80))}`, tc.name, true);
+          updateLiveBubble(liveText + `\n\n> 🔧 **${tc.name}** _执行中…_`);
+        }
       },
       onToolResult(tc) {
-        const ok = !tc.result?.startsWith?.('Error');
-        thoughtLine('tool', `${tc.name} ${ok ? '✓' : '✗'}`, tc.name, ok);
-        const resultPreview = (tc.result || '').slice(0, 120);
-        const toolDone = `\n\n> 🔧 **${tc.name}** ${ok ? '✅' : '❌'} ${resultPreview}`;
-        updateLiveBubble(liveText + toolDone);
+        if (activeSessionId === owningSessionId) {
+          const ok = !tc.result?.startsWith?.('Error');
+          thoughtLine('tool', `${tc.name} ${ok ? '✓' : '✗'}`, tc.name, ok);
+          const resultPreview = (tc.result || '').slice(0, 120);
+          updateLiveBubble(liveText + `\n\n> 🔧 **${tc.name}** ${ok ? '✅' : '❌'} ${resultPreview}`);
+        }
       },
       onDone(finalText, toolCalls, data) {
         finalizeLiveBubble(finalText);
