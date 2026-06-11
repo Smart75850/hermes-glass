@@ -26,6 +26,7 @@ const CONFIG = {
 let activeSessionId = null;
 let activeStream = null;  // 当前活跃嘅 SSE 连接 (EventSource)
 let activeStreamId = null;  // 当前活跃嘅 stream_id (用于取消 Gateway 端流)
+let currentStopHandler = null;  // 当前「停止」掣嘅 handler
 
 // ═══════════════════════════════════════════════════════════════
 // DOM 引用
@@ -888,6 +889,22 @@ function initChat() {
 
 let isSending = false;
 
+/** 恢复发送掣 — 清除 stopHandler，重新绑定 sendMessage */
+function restoreSendButton() {
+  const sb = document.getElementById('send-btn');
+  if (!sb) return;
+  if (currentStopHandler) {
+    sb.removeEventListener('click', currentStopHandler);
+    currentStopHandler = null;
+  }
+  sb.removeEventListener('click', sendMessage);  // 清残留
+  sb.addEventListener('click', sendMessage);
+  sb.textContent = t('send');
+  sb.style.background = '';
+  sb.style.color = '';
+  sb.disabled = false;
+}
+
 function showSlashHelp() {
   const lines = SLASH_COMMANDS.map(c => `· \`${c.cmd}\` — ${c.label}：${c.desc}`).join('\n');
   addChatMessage('system', `可用命令（输入 \`/\` 调出菜单）：\n\n${lines}`);
@@ -966,12 +983,10 @@ async function sendMessage() {
       finalizeLiveBubble(liveText);
       if (liveText) addChatMessage('ai', liveText);
       thoughtLine('msg', '已停止生成');
-      // 恢復發送掣
-      btn.textContent = t('send'); btn.style.background = ''; btn.style.color = '';
-      btn.removeEventListener('click', stopHandler);
-      btn.addEventListener('click', sendMessage);
+      restoreSendButton();
       isSending = false;
     };
+    currentStopHandler = stopHandler;
     btn.removeEventListener('click', sendMessage);
     btn.addEventListener('click', stopHandler);
   }
@@ -1010,9 +1025,7 @@ async function sendMessage() {
         thoughtLine('msg', `回复完成 · ${finalText.length} 字符 · ${toolCalls.length} 次工具调用`);
         activeStream = null;
         activeStreamId = null;
-        // ★ 恢復發送掣
-        const sb = document.getElementById('send-btn');
-        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
+        restoreSendButton();
         isSending = false;
         setTimeout(loadSessions, 1000);
         setTimeout(loadTokenUsage, 1500);
@@ -1022,15 +1035,13 @@ async function sendMessage() {
         if (activeStream) { finalizeLiveBubble(liveText); activeStream = null; }
         activeStreamId = null;
         setAiActivity('idle', '空闲');
-        const sb = document.getElementById('send-btn');
-        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
+        restoreSendButton();
         isSending = false;
       },
       onCancel() {
         activeStream = null;
         activeStreamId = null;
-        const sb = document.getElementById('send-btn');
-        if (sb) { sb.textContent = t('send'); sb.style.background = ''; sb.style.color = ''; sb.onclick = sendMessage; sb.disabled = false; }
+        restoreSendButton();
         isSending = false; setAiActivity('idle', '空闲');
       },
     });
