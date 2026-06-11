@@ -24,9 +24,24 @@ const CONFIG = {
 // 全局状态
 // ═══════════════════════════════════════════════════════════════
 let activeSessionId = null;
-let activeStream = null;  // 当前活跃嘅 SSE 连接 (EventSource)
-let activeStreamId = null;  // 当前活跃嘅 stream_id (用于取消 Gateway 端流)
-let currentStopHandler = null;  // 当前「停止」掣嘅 handler
+// ═══ Per-Session 状态隔离 ═══
+// 每个 session 有独立嘅 stream/发送锁/停止掣
+// key = session_id, value = { stream, streamId, stopHandler, isSending }
+const sessionStates = new Map();
+
+function getSessionState(sid) {
+  if (!sessionStates.has(sid)) {
+    sessionStates.set(sid, { stream: null, streamId: null, stopHandler: null, isSending: false });
+  }
+  return sessionStates.get(sid);
+}
+
+function clearAllSessionStates() {
+  for (const state of sessionStates.values()) {
+    try { state.stream?.cancel(); } catch(_) {}
+  }
+  sessionStates.clear();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // DOM 引用
@@ -858,17 +873,17 @@ function initChat() {
     dom.newSessionBtn.textContent = '创建中…';
     try {
       // 1. 取消旧会话嘅活跃 stream（Gateway 端）
-      if (activeStreamId) {
-        try { await HermesAPI.chatCancel(activeStreamId); } catch(_) {}
+      const oldState = getSessionState(activeSessionId);
+      if (oldState.streamId) {
+        try { await HermesAPI.chatCancel(oldState.streamId); } catch(_) {}
       }
       // 2. 断开客户端 SSE
-      if (activeStream) {
-        try { activeStream.cancel(); } catch(_) {}
-        activeStream = null;
+      if (oldState.stream) {
+        try { oldState.stream.cancel(); } catch(_) {}
       }
-      activeStreamId = null;
-      // 3. 解除发送锁
-      isSending = false;
+      // 3. 清除旧会话状态
+      sessionStates.delete(activeSessionId);
+      restoreSendButton();
       dom.sendBtn.disabled = false;
 
       // 4. 创建新会话
@@ -889,13 +904,14 @@ function initChat() {
 
 let isSending = false;
 
-/** 恢复发送掣 — 清除 stopHandler，重新绑定 sendMessage */
+/** 恢复发送掣 — 清除当前 session 嘅 stopHandler，重新绑定 sendMessage */
 function restoreSendButton() {
   const sb = document.getElementById('send-btn');
   if (!sb) return;
-  if (currentStopHandler) {
-    sb.removeEventListener('click', currentStopHandler);
-    currentStopHandler = null;
+  const state = getSessionState(activeSessionId);
+  if (state.stopHandler) {
+    sb.removeEventListener('click', state.stopHandler);
+    state.stopHandler = null;
   }
   sb.removeEventListener('click', sendMessage);  // 清残留
   sb.addEventListener('click', sendMessage);
@@ -903,6 +919,7 @@ function restoreSendButton() {
   sb.style.background = '';
   sb.style.color = '';
   sb.disabled = false;
+  state.isSending = false;
 }
 
 function showSlashHelp() {
@@ -911,11 +928,12 @@ function showSlashHelp() {
 }
 
 async function sendMessage() {
-  if (isSending) return;
+  const state = getSessionState(activeSessionId);
+  if (state.isSending) return;
   const text = dom.msgInput.value.trim();
   if (!text) return;
 
-  isSending = true;
+  state.isSending = true;
   dom.msgInput.value = '';
   dom.sendBtn.disabled = true;
 
@@ -938,11 +956,14 @@ async function sendMessage() {
   // ★ 發送後自動停止錄音
   window.__voice?.stopRecording();
 
-  // 如果之前有流式连接，先取消
-  if (activeStream) {
-    activeStream.cancel();
-    activeStream = null;
-    activeStreamId = null;
+  // 如果之前有流式连接（同 session），先取消 Gateway + 客户端
+  if (state.streamId) {
+    try { await HermesAPI.chatCancel(state.streamId); } catch(_) {}
+  }
+  if (state.stream) {
+    state.stream.cancel();
+    state.stream = null;
+    state.streamId = null;
   }
 
   setAiActivity('thinking', '思考中…');
@@ -962,7 +983,8 @@ async function sendMessage() {
     const startResult = await HermesAPI.chatStart(activeSessionId, text);
     const streamId = startResult.stream_id;
     if (!streamId) throw new Error('No stream_id returned');
-    activeStreamId = streamId;  // 记录当前 stream，新会话创建时取消
+    state.streamId = streamId;  // 记录当前 stream，新会话创建时取消
+    const owningSessionId = activeSessionId;  // 闭包捕获 — stream 回调始终用创建时嘅 session
 
     thoughtLine('msg', `流式连接已建立`);
 
@@ -977,21 +999,23 @@ async function sendMessage() {
     btn.disabled = false;
     // 先移除舊 listener，再加新嘅
     const stopHandler = () => {
-      if (activeStream) { activeStream.cancel(); activeStream = null; }
-      activeStreamId = null;
+      const st = getSessionState(owningSessionId);
+      if (st.stream) { st.stream.cancel(); st.stream = null; }
+      st.streamId = null;
       if (window.__voice) window.__voice.setState('idle');
       finalizeLiveBubble(liveText);
       if (liveText) addChatMessage('ai', liveText);
       thoughtLine('msg', '已停止生成');
-      restoreSendButton();
-      isSending = false;
+      // 如果当前显示嘅就系呢个 session，恢复按钮
+      if (activeSessionId === owningSessionId) restoreSendButton();
+      else { st.isSending = false; st.stopHandler = null; }
     };
-    currentStopHandler = stopHandler;
+    state.stopHandler = stopHandler;
     btn.removeEventListener('click', sendMessage);
     btn.addEventListener('click', stopHandler);
   }
 
-  activeStream = connectChatStream(streamId, {
+  state.stream = connectChatStream(streamId, {
       onToken(token, fullText) {
         liveText = fullText;
         updateLiveBubble(liveText);
@@ -1023,26 +1047,28 @@ async function sendMessage() {
         setAiActivity('idle', '空闲');
         window.__voice?.setState('idle');
         thoughtLine('msg', `回复完成 · ${finalText.length} 字符 · ${toolCalls.length} 次工具调用`);
-        activeStream = null;
-        activeStreamId = null;
-        restoreSendButton();
-        isSending = false;
+        const doneState = getSessionState(owningSessionId);
+        doneState.stream = null;
+        doneState.streamId = null;
+        if (activeSessionId === owningSessionId) restoreSendButton();
+        else doneState.isSending = false;
         setTimeout(loadSessions, 1000);
         setTimeout(loadTokenUsage, 1500);
       },
       onError(err) {
         console.warn('[SSE]', err);
-        if (activeStream) { finalizeLiveBubble(liveText); activeStream = null; }
-        activeStreamId = null;
-        setAiActivity('idle', '空闲');
-        restoreSendButton();
-        isSending = false;
+        const errState = getSessionState(owningSessionId);
+        if (errState.stream) { finalizeLiveBubble(liveText); errState.stream = null; }
+        errState.streamId = null;
+        if (activeSessionId === owningSessionId) { setAiActivity('idle', '空闲'); restoreSendButton(); }
+        else errState.isSending = false;
       },
       onCancel() {
-        activeStream = null;
-        activeStreamId = null;
-        restoreSendButton();
-        isSending = false; setAiActivity('idle', '空闲');
+        const cancelState = getSessionState(owningSessionId);
+        cancelState.stream = null;
+        cancelState.streamId = null;
+        if (activeSessionId === owningSessionId) { restoreSendButton(); setAiActivity('idle', '空闲'); }
+        else cancelState.isSending = false;
       },
     });
   } catch (e) {
@@ -1166,9 +1192,28 @@ let isLoadingMore = false;
 let allMessagesLoaded = false;
 
 async function selectSession(sid, silent = false) {
+  // ⚠️ 切换会话时唔取消旧 stream — 旧会话继续运行
+  // 只切换 UI 状态到新会话
   activeSessionId = sid;
   currentMessageOffset = 0;
   allMessagesLoaded = false;
+
+  // 恢复新会话嘅按钮状态
+  const newState = getSessionState(sid);
+  if (newState.isSending && newState.stream) {
+    // 新会话有活跃 stream → 显示停止掣
+    const btn = document.getElementById('send-btn');
+    if (btn && newState.stopHandler) {
+      btn.textContent = '停止';
+      btn.style.background = '#ff4444'; btn.style.color = '#fff';
+      btn.removeEventListener('click', sendMessage);
+      btn.addEventListener('click', newState.stopHandler);
+    }
+  } else {
+    // 新会话冇活跃 stream → 显示发送掣
+    restoreSendButton();
+  }
+
   // 更新 UI 高亮
   document.querySelectorAll('.session-item').forEach(el => {
     el.classList.toggle('active', el.querySelector('.session-title')?.textContent && sid === activeSessionId);
