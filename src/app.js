@@ -1385,10 +1385,26 @@ async function loadCronCards() {
     }
     lastKnownSessionCount = sessions.length;
 
-    // 3. 每 5 分鐘輪詢
-    setTimeout(loadCronCards, 300000);
-  } catch (e) { setTimeout(loadCronCards, 300000); }
+    // 3. 智能輪詢 (僅頁面可見時, 15 分鐘間隔; 頁面隱藏自動暫停)
+    if (!window._cronPollingPaused && document.visibilityState !== 'hidden') {
+      setTimeout(loadCronCards, 900000);
+    }
+  } catch (e) {
+    if (!window._cronPollingPaused && document.visibilityState !== 'hidden') {
+      setTimeout(loadCronCards, 900000);
+    }
+  }
 }
+
+// 頁面隱藏時暫停輪詢, 顯示時恢復 (節省 API 調用)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    window._cronPollingPaused = false;
+    loadCronCards();  // 恢復時立即刷新一次
+  } else {
+    window._cronPollingPaused = true;
+  }
+});
 
 // ── Cron 面板 ──
 async function loadCronPanel() {
@@ -1645,12 +1661,14 @@ function init() {
   }, 'qaButtons');
 
   // 加載真實數據
+  // 延遲非關鍵加載, 避免頁面初始化時大量 API 調用
   safe(function(){ loadSessions(); }, 'loadSessions');
-  safe(function(){ setTimeout(loadMemoryForGraph, 1500); }, 'loadMemoryGraph');
-  safe(function(){ setTimeout(loadFocusList, 2000); }, 'loadFocusList');
-  safe(function(){ setTimeout(loadTokenUsage, 2500); }, 'loadTokenUsage');
-  safe(function(){ setTimeout(loadCronCards, 3000); }, 'loadCronCards');
-  safe(function(){ setTimeout(loadWorkspacePanel, 4000); }, 'loadWorkspace');
+  safe(function(){ setTimeout(loadMemoryForGraph, 3000); }, 'loadMemoryGraph');
+  safe(function(){ setTimeout(loadFocusList, 5000); }, 'loadFocusList');
+  safe(function(){ setTimeout(loadTokenUsage, 8000); }, 'loadTokenUsage');
+  // Cron cards 僅在頁面可見時加載, 初次延遲 10s
+  safe(function(){ if (document.visibilityState !== 'hidden') setTimeout(loadCronCards, 10000); }, 'loadCronCards');
+  safe(function(){ setTimeout(loadWorkspacePanel, 12000); }, 'loadWorkspace');
   safe(function(){ initMemorySearch(); }, 'initMemorySearch');
 
   safe(function(){

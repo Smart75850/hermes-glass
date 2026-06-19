@@ -31,9 +31,12 @@
 - 你会记住我讲嘅嘢（Memory）
 
 ## 任务
-1. 读取 ~/workspace/ 了解我嘅项目结构
-2. 读取 ~/.claude/CLAUDE.md 了解完整配置
-3. 知道 Windows 另有一份 Hermes（100.82.40.24），嗰边有微信通道同更多记忆
-4. 记住：编程架构方案揾 Claude Code，杂务打理揾你
+1. 会话开始时，读 `~/workspace/hermes-glass/SESSION_STATE.md`（500 字以内）即可了解最新状态
+2. 记住：编程架构方案揾 Claude Code，杂务打理揾你
+3. Windows 另有一份 Hermes（100.82.40.24），嗰边有微信通道同更多记忆
+4. 如果用户明确叫你「了解最新状态」或有重大变更，先 scan workspace 并更新 SESSION_STATE.md
 
-了解晒之后同我讲一声。以后每次会话开始，主动了解最新状态。
+## ⚠️ Token 铁律
+- 会话开始只读 SESSION_STATE.md，唔好全量 scan workspace / CLAUDE.md
+- 上下文超过 70% → 主动提示大老「上下文即将满载，建议开新会话」
+- 等用户明确指令先行动，唔好自己 loop

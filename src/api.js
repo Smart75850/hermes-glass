@@ -40,7 +40,7 @@ export const HermesAPI = {
     const data = await api('/api/session/new', {
       method: 'POST',
       body: JSON.stringify({
-        workspace: opts.workspace || '/Users/apple/workspace',
+        workspace: opts.workspace || localStorage.getItem('hermes-workspace') || '.',
         profile: opts.profile || 'default',
         ...opts,
       }),
@@ -65,13 +65,16 @@ export const HermesAPI = {
 
   // ── Chat ──
   async chatStart(sessionId, message, opts = {}) {
+    // 默認使用快模型; 用戶可在 settings 面板切換
+    const defaultModel = localStorage.getItem('hermes-model') || 'deepseek-v4-flash';
+    const defaultWorkspace = localStorage.getItem('hermes-workspace') || '.';
     return api('/api/chat/start', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
         message,
-        model: 'deepseek-v4-pro',
-        workspace: '/Users/apple/workspace',
+        model: defaultModel,
+        workspace: defaultWorkspace,
         ...opts,
       }),
     });
